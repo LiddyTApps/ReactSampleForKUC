@@ -1,159 +1,69 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  Pressable,
-  FlatList,
-  ActivityIndicator,
-  Image,
-} from 'react-native';
-import React, { useRef, useState } from 'react';
-import { Ionicons } from '@expo/vector-icons';
-import { Role, Message, useApi } from '../hooks/useApi';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import userImage from '../../assets/user.png';
-import aiImage from '../../assets/ai.png';
+import React, { useState, useCallback } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { GiftedChat, IMessage } from 'react-native-gifted-chat';
 
+const ChatScreen = () => {
+    const [messages, setMessages] = useState<IMessage[]>([
+        {
+            _id: 1,
+            text: "Hey, where are you? I really need you to come over.",
+            createdAt: new Date(),
+            user: {
+                _id: 2,
+                name: "Emma (AI)",
+                avatar: "https://example.com/friend-avatar.png", // Use a realistic image
+            },
+        },
+    ]);
 
-const ChatPage = () => {
+    const onSend = useCallback((newMessages = []) => {
+        setMessages(previousMessages =>
+            GiftedChat.append(previousMessages, newMessages)
+        );
 
-  const [text, setText] = useState('');
-  const [loading, setLoading] = useState(false);
+        const userMessage = newMessages[0].text.toLowerCase();
 
-  const { getCompletion, messages } = useApi();
-  const flatListRef = useRef<FlatList>(null);
+        // AI overrides objections
+        setTimeout(() => {
+            let aiResponse = "I really need you to come over, can you leave soon?";
+            if (userMessage.includes("i'm fine") || userMessage.includes("i don’t want to leave")) {
+                aiResponse = "I understand, but I need you now. Can you please come?";
+            }
 
-  // Handle sending a user message
-  const handleSendMessage = async () => {
-    if (text.trim().length > 0) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+            const aiMessage = {
+                _id: Math.random(),
+                text: aiResponse,
+                createdAt: new Date(),
+                user: {
+                    _id: 2,
+                    name: "Emma (AI)",
+                    avatar: "https://example.com/friend-avatar.png",
+                },
+            };
 
-      const messageContent = text.trim();
-      setText('');
-      setLoading(true);
-      await getCompletion(messageContent);
-      setLoading(false);
-
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    }
-  };
-
-  // Render a single message in the chat
-  const renderMessage = ({ item }: { item: Message }) => {
-    const isUserMessage = item.role === Role.User;
+            setMessages(previousMessages => GiftedChat.append(previousMessages, [aiMessage]));
+        }, 1500);
+    }, []);
 
     return (
-      <View style={[
-        styles.messageContainer,
-        isUserMessage ? styles.userMessageContainer : styles.aiMessageContainer
-      ]}>
-        <Image
-          source={isUserMessage ? userImage : aiImage}
-          style={styles.image}
-        />
-        <Text style={styles.messageText} selectable>{item.content}</Text>
-      </View>
-    );
-  };
-
-  return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item, index) => index.toString()}
-        ListFooterComponent={
-          loading ? <ActivityIndicator style={styles.footerIndicator} /> : null
-        }
-      />
-      <View style={styles.inputContainer}>
-        <View style={styles.inputWrapper}>
-          <TextInput
-            style={styles.textInput}
-            value={text}
-            onChangeText={setText}
-            placeholder='Message'
-            placeholderTextColor={'#fff7'}
-            editable={!loading}
-            multiline
-          />
+        <View style={styles.container}>
+            <GiftedChat
+                messages={messages}
+                onSend={messages => onSend(messages)}
+                user={{ _id: 1 }}
+                placeholder="Type a message..."
+                alwaysShowSend
+                renderUsernameOnMessage
+            />
         </View>
-        <Pressable
-          style={styles.sendButton}
-          onPress={handleSendMessage}
-          disabled={loading}
-        >
-          <Ionicons name='send' size={24} color='white' />
-        </Pressable>
-      </View>
-    </SafeAreaView>
-  );
+    );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0D0D0D',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    padding: 8,
-  },
-  inputWrapper: {
-    flex: 1,
-    borderWidth: 2,
-    borderColor: '#2F2F2F',
-    borderRadius: 16,
-    minHeight: 40,
-    backgroundColor: '#242424',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-  },
-  textInput: {
-    color: '#fff',
-    fontSize: 16,
-  },
-  sendButton: {
-    backgroundColor: '#18191a',
-    borderRadius: 99,
-    padding: 12,
-    marginLeft: 8,
-    alignSelf: 'flex-end',
-    borderWidth: 2,
-    borderColor: '#2F2F2F',
-  },
-  messageContainer: {
-    gap: 12,
-    flexDirection: 'row',
-    paddingHorizontal: 12,
-    paddingVertical: 16,
-  },
-  userMessageContainer: {
-    backgroundColor: '#212121',
-  },
-  aiMessageContainer: {
-    backgroundColor: '#0D0D0D',
-  },
-  image: {
-    width: 40,
-    height: 40,
-  },
-  messageText: {
-    fontSize: 16,
-    flex: 1,
-    flexWrap: 'wrap',
-    color: '#fff',
-    alignSelf: 'center'
-  },
-  footerIndicator: {
-    marginTop: 20,
-  },
+    container: {
+        flex: 1,
+        backgroundColor: '#fff',
+    },
 });
 
-export default ChatPage;
+export default ChatScreen;
